@@ -41,13 +41,33 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return None
+        return data.split("\r\n")[0].split(" ")[1]
 
-    def get_headers(self,data):
-        return None
+    def get_headers(self, data):
+        headers = dict()
+        first_line = True
+        for line in data.split("\r\n"):
+            if line == "":
+                break
+            elif first_line:
+                first_line = False
+                continue
+
+            k, v = line.split(": ")
+            headers[k.strip()] = v.strip()
+        return headers
 
     def get_body(self, data):
-        return None
+        after_headers = False
+        body = ""
+        for line in data.split("\r\n"):
+            if after_headers:
+                body += line + "\r\n"
+            elif line == "":
+                after_headers = True
+                continue
+            
+        return body
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -58,18 +78,43 @@ class HTTPClient(object):
     # read everything from the socket
     def recvall(self, sock):
         buffer = bytearray()
-        done = False
-        while not done:
-            part = sock.recv(1024)
+        buffer_size = 1024
+        while True:
+            part = sock.recv(buffer_size)
+            # Modified this loop to properly receive socket data by basing it off of
+            # StackOverflow user yoniLavi: https://stackoverflow.com/u/493553
+            # Link to code: https://stackoverflow.com/a/34236030
+            if len(part) < buffer_size:
+                break
+            
             if (part):
                 buffer.extend(part)
             else:
-                done = not part
+                break
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        code = 500
-        body = ""
+        self.connect(url, 80)
+
+        request = [
+            "GET / HTTP/1.1",
+            f"Host: {url}",
+        ]
+
+        stringify = "\r\n".join(request) + "\r\n\r\n"
+        self.sendall(stringify)
+        
+        data = self.recvall(self.socket)
+        self.close()
+
+        code = self.get_code(data)
+        headers = self.get_headers(data)
+        body = self.get_body(data)
+
+        # print(code)
+        # print(headers)
+        # print(body)
+
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
