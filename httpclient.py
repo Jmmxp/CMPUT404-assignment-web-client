@@ -33,7 +33,22 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
-    #def get_host_port(self,url):
+    def get_host_port(self, url):
+        host_port = urllib.parse.urlparse(url)
+        host = host_port.hostname
+        port = host_port.port
+
+        if port is None:
+            return (host, 80)
+        else:
+            return (host, port)
+
+    def get_path(self, url):
+        path = urllib.parse.urlparse(url).path
+        if len(path) == 0:
+            return "/"
+        else:
+            return path
 
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,7 +56,8 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        return data.split("\r\n")[0].split(" ")[1]
+        split = data.split("\r\n")
+        return int(data.split("\r\n")[0].split(" ")[1])
 
     def get_headers(self, data):
         headers = dict()
@@ -58,16 +74,7 @@ class HTTPClient(object):
         return headers
 
     def get_body(self, data):
-        after_headers = False
-        body = ""
-        for line in data.split("\r\n"):
-            if after_headers:
-                body += line + "\r\n"
-            elif line == "":
-                after_headers = True
-                continue
-            
-        return body
+        return data.split("\r\n\r\n")[1]
     
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
@@ -78,32 +85,27 @@ class HTTPClient(object):
     # read everything from the socket
     def recvall(self, sock):
         buffer = bytearray()
-        buffer_size = 1024
-        while True:
-            part = sock.recv(buffer_size)
-            # Modified this loop to properly receive socket data by basing it off of
-            # StackOverflow user yoniLavi: https://stackoverflow.com/u/493553
-            # Link to code: https://stackoverflow.com/a/34236030
-            if len(part) < buffer_size:
-                break
-            
+        done = False
+        while not done:
+            part = sock.recv(1024)
             if (part):
                 buffer.extend(part)
             else:
-                break
+                done = not part
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
-        self.connect(url, 80)
+        host, port = self.get_host_port(url)
+        self.connect(host, port)
 
         request = [
-            "GET / HTTP/1.1",
-            f"Host: {url}",
+            f"GET {self.get_path(url)} HTTP/1.1",
+            f"Host: {host}",
         ]
 
         stringify = "\r\n".join(request) + "\r\n\r\n"
         self.sendall(stringify)
-        
+
         data = self.recvall(self.socket)
         self.close()
 
@@ -111,15 +113,34 @@ class HTTPClient(object):
         headers = self.get_headers(data)
         body = self.get_body(data)
 
-        # print(code)
-        # print(headers)
-        # print(body)
-
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        code = 500
-        body = ""
+        host, port = self.get_host_port(url)
+        self.connect(host, port)
+
+        arg_string = ""
+        for i, (k, v) in enumerate(args.items()):
+            arg_string += f"{k}={v}"
+            if i < len(args.items()) - 1:
+                arg_string += "&"
+
+        request = [
+            f"POST {self.get_path(url)} HTTP/1.1",
+            f"Host: {host}",
+            f"Content-Length: {len(arg_string.encode('utf-8'))}"
+        ]
+
+        stringify = "\r\n".join(request) + "\r\n\r\n"
+        self.sendall(stringify)
+
+        data = self.recvall(self.socket)
+        self.close()
+
+        code = self.get_code(data)
+        headers = self.get_headers(data)
+        body = self.get_body(data)
+
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
