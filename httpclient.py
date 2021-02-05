@@ -86,7 +86,7 @@ class HTTPClient(object):
         buffer = bytearray()
         done = False
         while not done:
-            part = sock.recv(1024)
+            part = sock.recv(128)
             if (part):
                 buffer.extend(part)
             else:
@@ -100,6 +100,7 @@ class HTTPClient(object):
         request_arr = [
             f"GET {self.get_path(url)} HTTP/1.1",
             f"Host: {host}",
+            f"Connection: close"
         ]
 
         request = "\r\n".join(request_arr) + "\r\n\r\n"
@@ -129,7 +130,8 @@ class HTTPClient(object):
             f"POST {self.get_path(url)} HTTP/1.1",
             f"Host: {host}",
             f"Content-Type: application/x-www-form-urlencoded",
-            f"Content-Length: {len(body.encode('utf-8'))}"
+            f"Content-Length: {len(body.encode('utf-8'))}",
+            f"Connection: close"
         ]
 
         request = "\r\n".join(request_arr) + "\r\n\r\n" + body
