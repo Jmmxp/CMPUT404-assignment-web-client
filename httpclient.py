@@ -56,7 +56,6 @@ class HTTPClient(object):
         return None
 
     def get_code(self, data):
-        split = data.split("\r\n")
         return int(data.split("\r\n")[0].split(" ")[1])
 
     def get_headers(self, data):
@@ -98,13 +97,13 @@ class HTTPClient(object):
         host, port = self.get_host_port(url)
         self.connect(host, port)
 
-        request = [
+        request_arr = [
             f"GET {self.get_path(url)} HTTP/1.1",
             f"Host: {host}",
         ]
 
-        stringify = "\r\n".join(request) + "\r\n\r\n"
-        self.sendall(stringify)
+        request = "\r\n".join(request_arr) + "\r\n\r\n"
+        self.sendall(request)
 
         data = self.recvall(self.socket)
         self.close()
@@ -119,20 +118,22 @@ class HTTPClient(object):
         host, port = self.get_host_port(url)
         self.connect(host, port)
 
-        arg_string = ""
-        for i, (k, v) in enumerate(args.items()):
-            arg_string += f"{k}={v}"
-            if i < len(args.items()) - 1:
-                arg_string += "&"
+        body = ""
+        if args is not None:
+            for i, (k, v) in enumerate(args.items()):
+                body += f"{k}={v}"
+                if i < len(args.items()) - 1:
+                    body += "&"
 
-        request = [
+        request_arr = [
             f"POST {self.get_path(url)} HTTP/1.1",
             f"Host: {host}",
-            f"Content-Length: {len(arg_string.encode('utf-8'))}"
+            f"Content-Type: application/x-www-form-urlencoded",
+            f"Content-Length: {len(body.encode('utf-8'))}"
         ]
 
-        stringify = "\r\n".join(request) + "\r\n\r\n"
-        self.sendall(stringify)
+        request = "\r\n".join(request_arr) + "\r\n\r\n" + body
+        self.sendall(request)
 
         data = self.recvall(self.socket)
         self.close()
