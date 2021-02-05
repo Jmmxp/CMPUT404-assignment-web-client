@@ -121,6 +121,8 @@ class HTTPClient(object):
 
         body = ""
         if args is not None:
+            # Code from user João Almeida https://stackoverflow.com/u/4141980, 
+            # at https://stackoverflow.com/a/53865188
             for i, (k, v) in enumerate(args.items()):
                 body += f"{k}={v}"
                 if i < len(args.items()) - 1:
@@ -130,6 +132,8 @@ class HTTPClient(object):
             f"POST {self.get_path(url)} HTTP/1.1",
             f"Host: {host}",
             f"Content-Type: application/x-www-form-urlencoded",
+            # Code from user Kris https://stackoverflow.com/u/3783770, 
+            # at https://stackoverflow.com/a/30686735
             f"Content-Length: {len(body.encode('utf-8'))}",
             f"Connection: close"
         ]
