@@ -33,6 +33,13 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
+    def __init__(self):
+        self.code_desc = {
+            200: "OK",
+            301: "Moved Permanently",
+            404: "Not Found"
+        }
+
     def get_host_port(self, url):
         host_port = urllib.parse.urlparse(url)
         host = host_port.hostname
@@ -54,6 +61,13 @@ class HTTPClient(object):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, port))
         return None
+
+    def print_response(self, code, headers, body):
+        print(f"HTTP/1.1 {code} {self.code_desc.get(code, '')}")
+        for k, v in headers.items():
+            print(f"{k}: {v}")
+        print()
+        print(body)
 
     def get_code(self, data):
         return int(data.split("\r\n")[0].split(" ")[1])
@@ -86,12 +100,27 @@ class HTTPClient(object):
         buffer = bytearray()
         done = False
         while not done:
-            part = sock.recv(128)
+            part = sock.recv(1024)
             if (part):
                 buffer.extend(part)
             else:
                 done = not part
         return buffer.decode('utf-8')
+
+    def send_request(self, request_arr, body=""):
+        request = "\r\n".join(request_arr) + "\r\n\r\n" + body
+        self.sendall(request)
+
+        data = self.recvall(self.socket)
+        self.close()
+
+        code = self.get_code(data)
+        headers = self.get_headers(data)
+        body = self.get_body(data)
+
+        self.print_response(code, headers, body)
+
+        return HTTPResponse(code, body)
 
     def GET(self, url, args=None):
         host, port = self.get_host_port(url)
@@ -103,17 +132,7 @@ class HTTPClient(object):
             f"Connection: close"
         ]
 
-        request = "\r\n".join(request_arr) + "\r\n\r\n"
-        self.sendall(request)
-
-        data = self.recvall(self.socket)
-        self.close()
-
-        code = self.get_code(data)
-        headers = self.get_headers(data)
-        body = self.get_body(data)
-
-        return HTTPResponse(code, body)
+        return self.send_request(request_arr)
 
     def POST(self, url, args=None):
         host, port = self.get_host_port(url)
@@ -138,17 +157,7 @@ class HTTPClient(object):
             f"Connection: close"
         ]
 
-        request = "\r\n".join(request_arr) + "\r\n\r\n" + body
-        self.sendall(request)
-
-        data = self.recvall(self.socket)
-        self.close()
-
-        code = self.get_code(data)
-        headers = self.get_headers(data)
-        body = self.get_body(data)
-
-        return HTTPResponse(code, body)
+        return self.send_request(request_arr, body)
 
     def command(self, url, command="GET", args=None):
         if (command == "POST"):

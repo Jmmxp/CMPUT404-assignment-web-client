@@ -11,6 +11,8 @@ Collaboration
 =============================
 
 I discussed how to approach the assignment and any issues I ran into together with Vinny Luu.
+I helped Hongfang Xu and Monica Uwalaka with some clarification on how to approach the assignment. 
+I asked Christian Lo about some issues I was running into with the given recvall() method.
 
 Sources
 =============================
