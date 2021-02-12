@@ -58,6 +58,8 @@ class HTTPClient(object):
             return path
 
     def connect(self, host, port):
+        if not host:
+            exit("Could not resolve hostname. Did you perhaps forget to prefix the url with 'http://'?")
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, port))
         return None
@@ -105,7 +107,10 @@ class HTTPClient(object):
                 buffer.extend(part)
             else:
                 done = not part
-        return buffer.decode('utf-8')
+        try:
+            return buffer.decode('utf-8')
+        except UnicodeDecodeError:
+            return buffer.decode('latin-1')
 
     def send_request(self, request_arr, body=""):
         request = "\r\n".join(request_arr) + "\r\n\r\n" + body
@@ -129,7 +134,8 @@ class HTTPClient(object):
         request_arr = [
             f"GET {self.get_path(url)} HTTP/1.1",
             f"Host: {host}",
-            f"Connection: close"
+            f"Connection: close",
+            f"Accept-Charset: utf-8"
         ]
 
         return self.send_request(request_arr)
@@ -154,7 +160,8 @@ class HTTPClient(object):
             # Code from user Kris https://stackoverflow.com/u/3783770, 
             # at https://stackoverflow.com/a/30686735
             f"Content-Length: {len(body.encode('utf-8'))}",
-            f"Connection: close"
+            f"Connection: close",
+            f"Accept-Charset: utf-8"
         ]
 
         return self.send_request(request_arr, body)
